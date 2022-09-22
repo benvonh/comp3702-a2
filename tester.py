@@ -176,10 +176,10 @@ def run_test_mp(filename_i_vis):
     # === plan offline =================================================================================================
     # construct validation set
     val_states = []
-    for i in range(VALIDATION_SET_SIZE):
+    for j in range(VALIDATION_SET_SIZE):
         temp_state = control_env.get_init_state()
-        for j in range(VALIDATION_SET_LOOKAHEAD):
-            random.seed(stable_hash((i, j)))
+        for k in range(VALIDATION_SET_LOOKAHEAD):
+            random.seed(stable_hash((j, k)))
             temp_action = random.choice(ROBOT_ACTIONS)
             _, temp_state = control_env.perform_action(temp_state, temp_action)
         val_states.append(temp_state)

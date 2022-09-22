@@ -16,16 +16,16 @@
 vi
 # discount factor =============
 0.999
-# epsilon factor ==============
+# epsilon =====================
 0.01
 # iterations target ===========
 308
 # offline time target =========
-80.0
+85.0
 # online time target ==========
 0.1
 # reward target ===============
--35.83
+-37.15
 # episode seed ================
 1312
 # hex grid data ===============

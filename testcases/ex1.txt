@@ -16,12 +16,12 @@
 vi
 # discount factor =============
 0.999
-# epsilon factor ==============
+# epsilon ==============
 0.01
 # iterations target ===========
 137
 # offline time target =========
-40.0
+50.0
 # online time target ==========
 0.1
 # reward target ===============
