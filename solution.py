@@ -34,83 +34,107 @@ class Solver:
         self.epsilon = environment.epsilon # convergence threshold
         self.discount = environment.gamma # discount factor
 
-    # === values Iteration =============================================================================================
+    # === Values Iteration =============================================================================================
 
     def vi_initialise(self):
         """
-        Initialise any variables required before the start of values Iteration.
+        Initialise any variables required before the start of Values Iteration.
         """
         self.k = 0
 
-        self.S = dict()
-        for player_rot in ROBOT_ORIENTATIONS:
-            for player_row in range(self.environment.n_rows):
-                for player_col in range(self.environment.n_cols):
-                    for widget_row in range(self.environment.n_rows):
-                        for widget_col in range(self.environment.n_cols):
-                            for widget_rot in WIDGET_ORIENTS[self.environment.widget_types[0]]:
-                                try:
-                                    self.S[
-                                        State(
-                                            self.environment,
-                                            (player_row, player_col), player_rot,
-                                            ((widget_row, widget_col),), (widget_rot,)
-                                        )
-                                     ] = 0
-                                except Exception as e:
-                                    #print(e)
-                                    continue
+        # Initialise set of all states
+        self.S = list()
+        frontier = [self.environment.get_init_state()]
+        while frontier:
+            expanding_state = frontier.pop()
+            for a in self.A:
+                cost, new_state = self.environment.apply_dynamics(expanding_state, a)
+                if new_state not in self.S:
+                    self.S.append(new_state)
+                    frontier.append(new_state)
 
-        #self.values = [self.states]
-        print(self.S)
+        # Initialise set of all transitions and rewards
+        self.P = dict()
+        self.R = dict()
+        for sd in self.S:
+            self.P[sd] = dict()
+            self.R[sd] = dict()
+            for s in self.S:
+                self.P[sd][s] = dict()
+                self.R[sd][s] = dict()
+                for a in self.A:
+                    cost, next_state = self.environment.apply_dynamics(s, a)
+                    self.P[sd][s][a] = 1 - self.environment.double_move_probs[a] - \
+                                            self.environment.drift_ccw_probs[a] - \
+                                            self.environment.drift_cw_probs[a]
+                    self.R[sd][s][a] = cost
+                        
+
+        # Initialises value list
+        self.V = list()
+        self.V.append(dict())
+        for s in self.S:
+            self.V[self.k][s] = 0
 
     def vi_is_converged(self):
         """
-        Check if values Iteration has reached convergence.
+        Check if Values Iteration has reached convergence.
         :return: True if converged, False otherwise
         """
-        #vk   = np.array(self.S[self.k].values())
-        #vk_1 = np.array(self.S[self.k-1].values())
-        #return np.all((np.abs(vk - vk_1) < self.epsilon) == True)
+        for s in self.S:
+            if np.abs(self.V[self.k][s] - self.V[self.k-1][s]) > self.epsilon:
+                print('not convergin??')
+                return False
+
+        print('it convergin??')
         return True
 
     def vi_iteration(self):
         """
-        Perform a single iteration of values Iteration (i.e. loop over the state space once).
+        Perform a single iteration of Values Iteration (i.e. loop over the state space once).
         """
         self.k += 1
+        self.V[self.k].append(dict())
+
+        for s in self.S:
+            values = np.zeros(len(self.A))
+            for a in self.A:
+                for sd in self.S:
+                    values[a] += self.P[sd][s][a] * (self.R[sd][s][a] + self.discount * self.V[self.k-1][sd])
+            self.V[self.k][s] = np.max(values)
+
+        print('iteration??')
 
     def vi_plan_offline(self):
         """
-        Plan using values Iteration.
+        Plan using Values Iteration.
         """
         # !!! In order to ensure compatibility with tester, you should not modify this method !!!
         self.vi_initialise()
-        self.vi_iteration() # FIXME: SUS
+        #self.vi_iteration() # FIXME: SUS
         while not self.vi_is_converged():
             self.vi_iteration()
 
-    def vi_get_state_values(self, state: State):
+    def vi_get_state_value(self, state: State):
         """
         Retrieve V(s) for the given state.
         :param state: the current state
         :return: V(s)
         """
-        #return self.values[self.k][state]
-        pass
+        return self.V[self.k][state]
 
     def vi_select_action(self, state: State):
         """
-        Retrieve the optimal action for the given state (based on values computed by values Iteration).
+        Retrieve the optimal action for the given state (based on values computed by Values Iteration).
         :param state: the current state
         :return: optimal action for the given state (element of ROBOT_ACTIONS)
         """
-        #
-        # TODO: Implement code to return the optimal action for the given state (based on your stored VI values) here.
-        #
-        # In order to ensure compatibility with tester, you should avoid adding additional arguments to this function.
-        #
-        pass
+        policy = np.zeros(len(self.A))
+        for a in self.A:
+            for sd in self.S:
+                policy[a] += self.P[sd][state][a] * (self.R[sd][state][a] + self.discount * self.V[self.k][sd])
+        
+        return np.argmax(policy)
 
     # === Policy Iteration =============================================================================================
 
@@ -161,7 +185,7 @@ class Solver:
 
     def pi_select_action(self, state: State):
         """
-        Retrieve the optimal action for the given state (based on values computed by values Iteration).
+        Retrieve the optimal action for the given state (based on values computed by Values Iteration).
         :param state: the current state
         :return: optimal action for the given state (element of ROBOT_ACTIONS)
         """
@@ -173,6 +197,7 @@ class Solver:
         pass
 
     # === Helper Methods ===============================================================================================
+
     def get_one_widget_permutation(self):
         for widget_row in range(self.environment.n_rows):
             for widget_col in range(self.environment.n_cols):
