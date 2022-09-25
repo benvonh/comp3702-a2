@@ -28,7 +28,7 @@ ROBOT_DOWN_LEFT = 'DL'
 ROBOT_DOWN_RIGHT = 'DR'
 ROBOT_ORIENTATIONS = [ROBOT_UP, ROBOT_DOWN, ROBOT_UP_LEFT, ROBOT_UP_RIGHT, ROBOT_DOWN_LEFT, ROBOT_DOWN_RIGHT]
 
-# ===Robot Actions ====================================================================================================
+# === Robot Actions ====================================================================================================
 FORWARD = 0
 REVERSE = 1
 SPIN_LEFT = 2

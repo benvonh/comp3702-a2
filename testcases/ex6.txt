@@ -17,11 +17,11 @@ pi
 # discount factor =============
 0.999
 # epsilon =====================
-0.001
+0.01
 # iterations target ===========
 23
 # offline time target =========
-200.0
+350.0
 # online time target ==========
 0.1
 # reward target ===============

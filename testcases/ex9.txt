@@ -17,7 +17,7 @@ pi
 # discount factor =============
 0.999
 # epsilon =====================
-0.001
+0.01
 # iterations target ===========
 50
 # offline time target =========
