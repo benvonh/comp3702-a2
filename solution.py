@@ -24,8 +24,6 @@ class Solver:
         # Inputs
         self.S = None
         self.A = ROBOT_ACTIONS
-        self.P = None
-        self.R = None
         # Outputs
         self.V = None
         self.PI = None
@@ -53,23 +51,6 @@ class Solver:
                     self.S.append(new_state)
                     frontier.append(new_state)
 
-        # Initialise set of all transitions and rewards
-        self.P = dict()
-        self.R = dict()
-        for sd in self.S:
-            self.P[sd] = dict()
-            self.R[sd] = dict()
-            for s in self.S:
-                self.P[sd][s] = dict()
-                self.R[sd][s] = dict()
-                for a in self.A:
-                    cost, next_state = self.environment.apply_dynamics(s, a)
-                    self.P[sd][s][a] = 1 - self.environment.double_move_probs[a] - \
-                                            self.environment.drift_ccw_probs[a] - \
-                                            self.environment.drift_cw_probs[a]
-                    self.R[sd][s][a] = cost
-                        
-
         # Initialises value list
         self.V = list()
         self.V.append(dict())
@@ -83,10 +64,8 @@ class Solver:
         """
         for s in self.S:
             if np.abs(self.V[self.k][s] - self.V[self.k-1][s]) > self.epsilon:
-                print('not convergin??')
                 return False
 
-        print('it convergin??')
         return True
 
     def vi_iteration(self):
@@ -100,7 +79,9 @@ class Solver:
             values = np.zeros(len(self.A))
             for a in self.A:
                 for sd in self.S:
-                    values[a] += self.P[sd][s][a] * (self.R[sd][s][a] + self.discount * self.V[self.k-1][sd])
+                    P = 1 - self.environment.drift_cw_probs[a] - self.environment.drift_ccw_probs[a] - self.environment.double_move_probs[a]
+                    R = 
+                    values[a] += P * (R + self.discount * self.V[self.k-1][sd])
             self.V[self.k][s] = np.max(values)
 
         print('iteration??')
@@ -198,8 +179,5 @@ class Solver:
 
     # === Helper Methods ===============================================================================================
 
-    def get_one_widget_permutation(self):
-        for widget_row in range(self.environment.n_rows):
-            for widget_col in range(self.environment.n_cols):
-                for widget_rot in WIDGET_ORIENTS[self.environment.widget_types]:
-                    yield (widget_row, widget_col), widget_rot
+    def action_noise(self, action):
+        pass
