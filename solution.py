@@ -73,14 +73,14 @@ class Solver:
         Perform a single iteration of Values Iteration (i.e. loop over the state space once).
         """
         self.k += 1
-        self.V[self.k].append(dict())
+        # self.V[self.k].append(dict())
 
         for s in self.S:
             values = np.zeros(len(self.A))
             for a in self.A:
                 for sd in self.S:
                     P = 1 - self.environment.drift_cw_probs[a] - self.environment.drift_ccw_probs[a] - self.environment.double_move_probs[a]
-                    R = 
+                    R =  1.0
                     values[a] += P * (R + self.discount * self.V[self.k-1][sd])
             self.V[self.k][s] = np.max(values)
 
