@@ -24,6 +24,8 @@ class Solver:
         # Inputs
         self.S = None
         self.A = ROBOT_ACTIONS
+        self.P = None
+        self.R = None
         # Outputs
         self.V = None
         self.PI = None
@@ -38,8 +40,6 @@ class Solver:
         """
         Initialise any variables required before the start of Values Iteration.
         """
-        self.k = 0
-
         # Initialise set of all states
         self.S = list()
         frontier = [self.environment.get_init_state()]
@@ -51,11 +51,21 @@ class Solver:
                     self.S.append(new_state)
                     frontier.append(new_state)
 
-        # Initialises value list
-        self.V = list()
-        self.V.append(dict())
+        self.P = dict()
+        self.R = dict()
         for s in self.S:
-            self.V[self.k][s] = 0
+            self.P[s] = dict()
+            self.R[s] = dict()
+            for a in self.A:
+                pr = self.get_pr(s, a)
+                self.P[s][a] = pr[0]
+                self.R[s][a] = pr[1]
+
+        # Initialises value list
+        self.k = 0
+        self.V = [dict()]
+        for s in self.S:
+            self.V[self.k][s] = 0.0
 
     def vi_is_converged(self):
         """
@@ -73,26 +83,25 @@ class Solver:
         Perform a single iteration of Values Iteration (i.e. loop over the state space once).
         """
         self.k += 1
-        # self.V[self.k].append(dict())
+        self.V[self.k].append(dict())
 
         for s in self.S:
             values = np.zeros(len(self.A))
             for a in self.A:
                 for sd in self.S:
-                    P = 1 - self.environment.drift_cw_probs[a] - self.environment.drift_ccw_probs[a] - self.environment.double_move_probs[a]
-                    R =  1.0
-                    values[a] += P * (R + self.discount * self.V[self.k-1][sd])
-            self.V[self.k][s] = np.max(values)
+                    if sd in self.P[s][a]:
+                        values[a] += self.P[s][a][sd] * (self.R[s][a][sd] + self.discount * self.V[self.k-1][sd])
 
-        print('iteration??')
+            self.V[self.k][s] = np.max(values)
 
     def vi_plan_offline(self):
         """
         Plan using Values Iteration.
         """
         # !!! In order to ensure compatibility with tester, you should not modify this method !!!
+        print('asdfasdfasdf')
         self.vi_initialise()
-        #self.vi_iteration() # FIXME: SUS
+        self.vi_iteration() # FIXME: SUS
         while not self.vi_is_converged():
             self.vi_iteration()
 
@@ -113,8 +122,9 @@ class Solver:
         policy = np.zeros(len(self.A))
         for a in self.A:
             for sd in self.S:
-                policy[a] += self.P[sd][state][a] * (self.R[sd][state][a] + self.discount * self.V[self.k][sd])
-        
+                if sd in self.P[state][a]:
+                    policy[a] += self.P[state][a][sd] * (self.R[state][a][sd] + self.discount * self.V[self.k][sd])
+    
         return np.argmax(policy)
 
     # === Policy Iteration =============================================================================================
@@ -179,5 +189,93 @@ class Solver:
 
     # === Helper Methods ===============================================================================================
 
-    def action_noise(self, action):
-        pass
+    def get_pr(self, state: State, action: int) -> list[dict, dict]:
+        pr = [dict(), dict()]
+
+        # nominal
+        cost, new_state = self.environment.apply_dynamics(state, action)
+        pr[0][new_state] = self.prob(action)[0]
+        pr[1][new_state] = cost
+        
+        # cw, nominal
+        _, new_state = self.environment.apply_dynamics(state, SPIN_RIGHT)
+        cost, new_state = self.environment.apply_dynamics(new_state, action)
+        if new_state in pr[0]:
+            pr[0][new_state] += self.prob(action)[1]
+            pr[1][new_state] += cost
+        else:
+            pr[0][new_state] = self.prob(action)[1]
+            pr[1][new_state] = cost
+
+        # ccw, nominal
+        _, new_state = self.environment.apply_dynamics(state, SPIN_LEFT)
+        cost, new_state = self.environment.apply_dynamics(new_state, action)
+        if new_state in pr[0]:
+            pr[0][new_state] += self.prob(action)[2]
+            pr[1][new_state] += cost
+        else:
+            pr[0][new_state] = self.prob(action)[2]
+            pr[1][new_state] = cost
+
+        # nominal, double
+        cost, new_state = self.environment.apply_dynamics(state, action)
+        cost2, new_state = self.environment.apply_dynamics(new_state, action)
+        cost += cost2
+        if new_state in pr[0]:
+            pr[0][new_state] += self.prob(action)[3]
+            pr[1][new_state] += cost
+        else:
+            pr[0][new_state] = self.prob(action)[3]
+            pr[1][new_state] = cost
+
+        # cw, nominal, double
+        _, new_state = self.environment.apply_dynamics(state, SPIN_RIGHT)
+        cost, new_state = self.environment.apply_dynamics(new_state, action)
+        cost2, new_state = self.environment.apply_dynamics(state, action)
+        cost += cost2
+        if new_state in pr[0]:
+            pr[0][new_state] += self.prob(action)[4]
+            pr[1][new_state] += cost
+        else:
+            pr[0][new_state] = self.prob(action)[4]
+            pr[1][new_state] = cost
+
+        # cw, nominal, double
+        _, new_state = self.environment.apply_dynamics(state, SPIN_LEFT)
+        cost, new_state = self.environment.apply_dynamics(new_state, action)
+        cost2, new_state = self.environment.apply_dynamics(state, action)
+        cost += cost2
+        if new_state in pr[0]:
+            pr[0][new_state] += self.prob(action)[5]
+            pr[1][new_state] += cost
+        else:
+            pr[0][new_state] = self.prob(action)[5]
+            pr[1][new_state] = cost
+
+        return pr
+
+    def prob(self, a: int) -> list[float]:
+        """
+        0: nominal
+        1: cw, nominal
+        2: ccw, nominal
+        3: nominal, double
+        4: cw, nominal, double
+        5: ccw, nominal, double
+        """
+        return [
+            # nominal
+            (1 - self.environment.drift_cw_probs[a] - self.environment.drift_ccw_probs[a]) * \
+            (1 - self.environment.double_move_probs[a]),
+            # cw, nominal
+            self.environment.drift_cw_probs[a] * (1 - self.environment.double_move_probs[a]),
+            # ccw, nominal
+            self.environment.drift_ccw_probs[a] * (1 - self.environment.double_move_probs[a]),
+            # nominal, double
+            (1 - self.environment.drift_cw_probs[a] - self.environment.drift_ccw_probs[a]) * \
+            self.environment.double_move_probs[a],
+            # cw, nominal, double
+            self.environment.drift_cw_probs[a] * self.environment.double_move_probs[a],
+            # ccw, nominal, double
+            self.environment.drift_ccw_probs[a] * self.environment.double_move_probs[a]
+        ]
